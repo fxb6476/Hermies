@@ -3,10 +3,21 @@
 #include <Adafruit_L3GD20_U.h>
 #include <math.h>
 
-#define ESC1 7  //GPIO 5
-#define ESC2 4  //GPIO 6
-#define ESC3 2  //GPIO 7
-#define ESC4 3  //GPIO 8
+#define ESC1 7  //GPIO 5 - Top left motor
+#define ESC2 4  //GPIO 6 - Bot left motor
+#define ESC3 2  //GPIO 7 - Top right motor
+#define ESC4 3  //GPIO 8 - Bot right motor
+
+#define kp_x 1  //Constants for PID Controller for x-axis
+#define ki_x 1
+#define kd_x 1
+
+#define kp_y 1  //Constants for PID Controller for y-axis
+#define ki_y 1
+#define kd_y 1
+
+#define kp_z 1  //Constants for PID Controller for z-axis
+#define kd_z 1
 
 Adafruit_L3GD20_Unified gyro = Adafruit_L3GD20_Unified(20);
 sensors_event_t event; 
@@ -14,6 +25,27 @@ sensors_event_t event;
 int throttle = 950;
 unsigned int looptime;
 unsigned int speedloop;
+
+float lastErr_x, lastErr_y, lastErr_z = 0;              //Hold Previous Error Measurment, used to calculate d/dt of (error)
+float sumErr_x, sumErr_y = 0;                           //Hold sum of error so far, used to calculate integral of (error)
+float error_x, error_y, error_z = 0;                    //Holds most recent error measuments for all 3 axis.
+float desired_x, desired_y, desired_z = 0;              //These are the desired angular change in all 3 axis.
+float pid_x, pid_y, pid_z = 0;                          //Outputs for each PID controller. Default of 0 means nothing happens until the compute_PID function is called.
+
+
+void compute_PID(void)
+{
+  sumErr_x += error_x * .004
+  sumErr_y += error_y * .004
+    
+  pid_x = (kp_x * error_x) + (ki_x * sumErr_x) + (kd_x * (error_x - lastErr_x) / .004);
+  pid_y = (kp_y * error_y) + (ki_y * sumErr_y) + (kd_y * (error_y - lastErr_y) / .004);
+  pid_z = (kp_z * error_z) + (kd_z * (error_z - lastErr_z) / .004);
+  
+  lastErr_x = error_x;
+  lastErr_y = error_y;
+  lastErr_z = error_z;
+}
 
 void displaySensorDetails(void)
 {
@@ -72,14 +104,16 @@ void loop() {
   
     gyro.getEvent(&event); //Getting rad/s
 
-    float x_gyro = event.gyro.x * ( 360/ (2*3.14));
-    float y_gyro = event.gyro.y * ( 360/ (2*3.14));
-    float z_gyro = event.gyro.z * ( 360/ (2*3.14));
+    error_x = desired_x - event.gyro.x * ( 360/ (2*3.14));
+    error_y = desired_y - event.gyro.y * ( 360/ (2*3.14));
+    error_z = desired_z - event.gyro.z * ( 360/ (2*3.14));
+  
+    compute_PID();
 
-    int spead1 = throttle - x_gyro - y_gyro + z_gyro;
-    int spead2 = throttle + x_gyro - y_gyro - z_gyro ; 
-    int spead3 = throttle - x_gyro + y_gyro - z_gyro;
-    int spead4 = throttle + x_gyro + y_gyro + z_gyro;
+    int spead1 = throttle - pid_x - pid_y + pid_z;
+    int spead2 = throttle + pid_x - pid_y - pid_z; 
+    int spead3 = throttle - pid_x + pid_y - pid_z;
+    int spead4 = throttle + pid_x + pid_y + pid_z;
 
     speedloop = micros();
     GPIOD_PDOR |= (1<<ESC1);
@@ -94,6 +128,7 @@ void loop() {
       if(micros() - speedloop > spead2) GPIOD_PDOR &= ~(1<<ESC4);
     }
     
-    while( (micros() - looptime) < 4000); 
+    while( 
+      (micros() - looptime) < 4000); 
 
 }
