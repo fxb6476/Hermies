@@ -84,9 +84,14 @@ void loop() {
     speedloop = micros();
     GPIOD_PDOR |= (1<<ESC1);
     GPIOD_PDOR |= (1<<ESC2);
+    GPIOD_PDOR |= (1<<ESC3);
+    GPIOD_PDOR |= (1<<ESC4);
+  
     while( GPIOD_PDOR > 4){
       if(micros() - speedloop > spead1) GPIOD_PDOR &= ~(1<<ESC1);
       if(micros() - speedloop > spead2) GPIOD_PDOR &= ~(1<<ESC2);
+      if(micros() - speedloop > spead1) GPIOD_PDOR &= ~(1<<ESC3);
+      if(micros() - speedloop > spead2) GPIOD_PDOR &= ~(1<<ESC4);
     }
     
     while( (micros() - looptime) < 4000); 
