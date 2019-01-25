@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <ros.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
@@ -127,14 +128,14 @@ void setup() {
   calibrate_ESC();
   
   digitalWrite(13, HIGH);
-  throttle = 1200;
+  throttle = 1500;
   masterloop = micros();
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  while(micros() - masterloop < 5000000){
+  while(micros() - masterloop < 3000000){
     looptime = micros();
   
     bno.getEvent(&event); //Getting angles
